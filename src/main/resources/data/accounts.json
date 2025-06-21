@@ -1,0 +1,17 @@
+{
+  "accounts" : [ {
+    "transactions" : [ 2 ],
+    "accountId" : 1000,
+    "userName" : "mariam",
+    "balance" : 20.0,
+    "timestamp" : "2025-06-21T19:27:14.4316385",
+    "passwordHash" : "01a0eedaf62153cf1acefc6322866e67b3dc78c10ed7626ec6d8fe508c589b79"
+  }, {
+    "transactions" : [ ],
+    "accountId" : 1001,
+    "userName" : "amr",
+    "balance" : 0.0,
+    "timestamp" : "2025-06-21T19:34:33.6685493",
+    "passwordHash" : "2b176ca2ab5b41895b1d96aff9ce668e04ce79f584997ad8991f900502574975"
+  } ]
+}
