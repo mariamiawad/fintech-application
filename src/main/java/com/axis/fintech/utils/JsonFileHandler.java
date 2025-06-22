@@ -1,6 +1,7 @@
 package com.axis.fintech.utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -44,32 +45,44 @@ public class JsonFileHandler {
 	// === Accounts ===
 
 	public static List<Account> loadAccounts() {
-		File file = Path.of(ACCOUNTS_PATH).toFile();
-		try {
-			if (!file.exists())
+	    File file = Path.of(ACCOUNTS_PATH).toFile();
 
-				return new ArrayList<>();
-			ObjectMapper mapper = new ObjectMapper();
-			if (file.length() == 0) {
-				Map<String, List<Account>> wrapper = new HashMap<String, List<Account>>();
-				if (wrapper.get("accounts") == null) {
-					List<Account> list = new ArrayList<>();
-					wrapper.put("accounts", list);
-					mapper.writeValue(file, wrapper);
-				}
-			}
+	    try {
+	        ObjectMapper mapper = new ObjectMapper();
+	        mapper.findAndRegisterModules();
+	        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-			mapper.findAndRegisterModules();
-			mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-			Map<String, List<Account>> wrapper = mapper.readValue(file, new TypeReference<>() {
-			});
+	        // Create file if it doesn't exist
+	        if (!file.exists()) {
+	            System.out.println("Creating new accounts file at: " + file.getAbsolutePath());
+	            file.getParentFile().mkdirs(); // ensure parent directories exist
+	            file.createNewFile();
 
-			return wrapper.getOrDefault("accounts", new ArrayList<>());
-		} catch (Exception e) {
-			System.err.println("Failed to read accounts.json: " + e.getMessage());
-			return new ArrayList<>();
-		}
+	            Map<String, List<Account>> wrapper = new HashMap<>();
+	            wrapper.put("accounts", new ArrayList<>());
+	            mapper.writeValue(file, wrapper);
+	            return new ArrayList<>();
+	        }
+
+	        // If file exists but is empty, initialize with empty wrapper
+	        if (file.length() == 0) {
+	            Map<String, List<Account>> wrapper = new HashMap<>();
+	            wrapper.put("accounts", new ArrayList<>());
+	            mapper.writeValue(file, wrapper);
+	            return new ArrayList<>();
+	        }
+
+	        // File exists and is non-empty, read normally
+	        Map<String, List<Account>> wrapper = mapper.readValue(file, new TypeReference<>() {});
+	        return wrapper.getOrDefault("accounts", new ArrayList<>());
+
+	    } catch (IOException e) {
+	        System.err.println("❌ Failed to load accounts file: " + file.getAbsolutePath());
+	        e.printStackTrace();
+	        return new ArrayList<>();
+	    }
 	}
+
 
 	public static void saveAccounts(List<Account> accounts) {
 		File file = Path.of(ACCOUNTS_PATH).toFile();
@@ -91,30 +104,41 @@ public class JsonFileHandler {
 	}
 
 	public static List<Transaction> loadTransactions() {
-		try {
-			File file = Path.of(TRANSACTIONS_PATH).toFile();
-			if (!file.exists())
-				return new ArrayList<>();
-			ObjectMapper mapper = new ObjectMapper();
+	    File file = Path.of(TRANSACTIONS_PATH).toFile();
 
-			if (file.length() == 0) {
-				Map<String, List<Account>> wrapper = new HashMap<String, List<Account>>();
-				if (wrapper.get("accounts") == null) {
-					List<Account> list = new ArrayList<>();
-					wrapper.put("accounts", list);
-					mapper.writeValue(file, wrapper);
-				}
-			}
+	    try {
+	        ObjectMapper mapper = new ObjectMapper();
+	        mapper.findAndRegisterModules();
+	        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
-			mapper.findAndRegisterModules();
-			mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-			Map<String, List<Transaction>> wrapper = mapper.readValue(file, new TypeReference<>() {
-			});
-			return wrapper.getOrDefault("transactions", new ArrayList<>());
-		} catch (Exception e) {
-			System.err.println("❌ Failed to read transactions file (" + TRANSACTIONS_PATH + "): " + e.getMessage());
-			return new ArrayList<>();
-		}
+	        // Create file and initialize if it doesn't exist
+	        if (!file.exists()) {
+	            System.out.println("Creating new transactions file at: " + file.getAbsolutePath());
+	            file.getParentFile().mkdirs();
+	            file.createNewFile();
+
+	            Map<String, List<Transaction>> wrapper = new HashMap<>();
+	            wrapper.put("transactions", new ArrayList<>());
+	            mapper.writeValue(file, wrapper);
+	            return new ArrayList<>();
+	        }
+
+	        // Initialize empty file if needed
+	        if (file.length() == 0) {
+	            Map<String, List<Transaction>> wrapper = new HashMap<>();
+	            wrapper.put("transactions", new ArrayList<>());
+	            mapper.writeValue(file, wrapper);
+	            return new ArrayList<>();
+	        }
+
+	        // Normal read
+	        Map<String, List<Transaction>> wrapper = mapper.readValue(file, new TypeReference<>() {});
+	        return wrapper.getOrDefault("transactions", new ArrayList<>());
+
+	    } catch (IOException e) {
+	        System.err.println("❌ Failed to read transactions file (" + TRANSACTIONS_PATH + "): " + e.getMessage());
+	        return new ArrayList<>();
+	    }
 	}
 
 	public static void saveTransactions(List<Transaction> transactions) {

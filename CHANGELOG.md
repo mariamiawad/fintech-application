@@ -3,16 +3,27 @@
 ## [Unreleased]
 
 ### Added
-- Overloaded `retry()` methods to support both returnable and void actions (`Supplier<String>` and `Runnable`)
-- `Exiter` functional interface to abstract `System.exit()` for improved testability
-- Unit tests for retry and exit flows with mockable `Exiter`
+- Overloaded `retry()` methods supporting both `Supplier<String>` and `Runnable` for CLI retry handling
+- `Exiter` functional interface to replace direct `System.exit()` calls for testability
+- Unit tests for exit behavior using injectable `Exiter` with `RuntimeException` interception
+- Dockerfile for containerized CLI execution with volume support
+- Instructions in README for building and running via Docker
 
 ### Changed
-- `AuthService`, `MenuService`, and `FintechApp` constructors now support `Exiter` injection
-- `System.exit()` calls replaced with `Exiter.exit(int)` in business logic
-- CLI input handling now allows retrying on invalid input or exiting cleanly
+- Refactored `AuthService`, `MenuService`, and `FintechApp` to accept `Exiter` for clean exit handling
+- Improved file initialization for `accounts.json` and `transactions.json` to support Docker runtime paths
+- CLI prompts made more robust with input validation loops
 
 ### Fixed
-- Mockito `any()` type ambiguity resolved using `ArgumentMatchers.<Supplier<String>>any()`
-- Test isolation issues due to unmocked `System.exit()` calls
-sssssss
+- FileNotFound and Permission errors when writing to `src/main/resources/` inside Docker
+- Mockito type inference issues with generic `Supplier<String>` in retry method tests
+- Test case interruptions due to unmocked `System.exit()` calls
+
+---
+
+## [v1.0.0] - Initial Release
+
+### Added
+- CLI menu for account signup, login, deposit, withdraw
+- JSON persistence with SHA-256 password hashing
+- Basic unit test coverage with JUnit 5 and Mockito

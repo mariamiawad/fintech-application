@@ -1,3 +1,10 @@
 {
-  "accounts" : [ ]
+  "accounts" : [ {
+    "transactions" : [ ],
+    "accountId" : 1000,
+    "userName" : "mariam",
+    "balance" : 0.0,
+    "timestamp" : "2025-06-22T10:07:17.0144271",
+    "passwordHash" : "01a0eedaf62153cf1acefc6322866e67b3dc78c10ed7626ec6d8fe508c589b79"
+  } ]
 }

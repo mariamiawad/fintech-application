@@ -54,6 +54,10 @@ public class FintechApp {
 				if (menuService.toContinue(scanner)) {
 					menuService.menu(scanner, userName);
 				}
+				else {
+					System.exit(0);
+				}
+			
 			}
 			if (authService.retry(scanner, () -> start())) {
 				start();

@@ -12,6 +12,7 @@ A Java-based CLI banking application for managing accounts, secure login, deposi
 - 🗂️ JSON-based persistent storage
 - 🧪 Full unit test coverage with JUnit 5 & Mockito
 - 🛡️ Password hashing via SHA-256
+- 🐳 Dockerized for containerized CLI execution
 
 ---
 
@@ -39,14 +40,45 @@ src/
 ### Requirements
 
 - Java 17+
-- Maven or Gradle
+- Maven
 
 ### Build & Run
 
 ```bash
-# Compile and run the application
-mvn clean install
-mvn spring-boot:run
+# Compile the JAR
+./mvnw clean package
+
+# Run the application
+java -jar target/fintech-cli-0.0.1-SNAPSHOT.jar
+```
+
+---
+
+## 🐳 Docker Support
+
+### Build Docker Image
+
+```bash
+docker build -t fintech-cli .
+```
+
+### Run the Application
+
+```bash
+docker run -it --rm fintech-cli
+```
+
+### Persist JSON Data
+
+```bash
+docker run -it --rm -v $(pwd)/data:/app/data fintech-cli
+```
+
+Ensure your `application.properties` or `class.properties` contains:
+
+```properties
+accounts.path=/app/data/accounts.json
+transactions.path=/app/data/transactions.json
 ```
 
 ---
@@ -86,22 +118,15 @@ mvn spring-boot:run
 }
 ```
 
-### `class.properties`
-
-```properties
-accounts.path=src/main/resources/accounts.json
-transactions.path=src/main/resources/transactions.json
-```
-
 ---
 
 ## 🧪 Running Tests
 
 ```bash
-mvn test
+./mvnw test
 ```
 
-Tests include:
+Test coverage includes:
 
 - `AccountServiceTest`
 - `TransactionServiceTest`
@@ -114,18 +139,18 @@ Tests include:
 
 ## 🔒 Security
 
-- Passwords are hashed with SHA-256
-- Usernames validated using regex
-- No passwords stored in plain text
+- Passwords are hashed using SHA-256
+- Regex validation for usernames
+- No plain-text password storage
 
 ---
 
 ## 📌 Future Work
 
-- Add REST API layer
-- Add transaction history filters
-- Add Docker support
-- Add role-based admin controls
+- Add REST API interface
+- Add transaction filtering
+- Role-based access control
+- User analytics and auditing
 
 ---
 
