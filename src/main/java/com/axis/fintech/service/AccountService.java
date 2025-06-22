@@ -4,10 +4,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.axis.fintech.model.Account;
-import com.axis.fintech.utils.HashUtil;
 import com.axis.fintech.utils.IdGenerator;
 import com.axis.fintech.utils.JsonFileHandler;
 
@@ -15,7 +16,8 @@ import jakarta.annotation.PostConstruct;
 
 @Service
 public class AccountService {
-	
+	@Autowired
+	private PasswordEncoder passwordEncoder;
 	private List<Account> accounts = null;
 
 	@PostConstruct
@@ -27,6 +29,9 @@ public class AccountService {
 			System.err.println("Failed to load accounts: " + e.getMessage());
 		}
 	}
+	public AccountService(PasswordEncoder passwordEncoder) {
+        this.passwordEncoder = passwordEncoder;
+    }
 
 	public Long openAccount(String userName, String plainPassword) {
 		boolean exists = accounts.stream().anyMatch(a -> a.getUserName().equalsIgnoreCase(userName));
@@ -42,7 +47,8 @@ public class AccountService {
             return null;
         }
 		Long accountId = IdGenerator.nextAccountId();
-	    String hashedPassword = HashUtil.sha256(plainPassword);
+	    String hashedPassword = passwordEncoder.encode(plainPassword); // ✅ BCrypt
+
 
 		Account account = new Account(userName, accountId, 0.0, hashedPassword);
 		accounts.add(account);
@@ -76,8 +82,6 @@ public class AccountService {
 	public boolean validatePassword(String userName, String inputPassword) {
         Account account = findByUserName(userName);
         if (account == null) return false;
-
-        String hashedInput = HashUtil.sha256(inputPassword);
-        return hashedInput.equals(account.getPasswordHash());
+        return passwordEncoder.matches(inputPassword, account.getPasswordHash());
     }
 }

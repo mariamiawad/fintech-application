@@ -74,6 +74,7 @@ public class JsonFileHandler {
 
 	        // File exists and is non-empty, read normally
 	        Map<String, List<Account>> wrapper = mapper.readValue(file, new TypeReference<>() {});
+	        System.out.println("Creating new accounts file at: " + file.getAbsolutePath());
 	        return wrapper.getOrDefault("accounts", new ArrayList<>());
 
 	    } catch (IOException e) {

@@ -1,5 +1,4 @@
-# Use a small official JDK image
-FROM eclipse-temurin:17-jdk-alpine
+FROM openjdk:17-jdk-slim
 
 # Set working directory
 WORKDIR /app
@@ -9,6 +8,8 @@ RUN mkdir -p /app/data
 
 # Copy the Spring Boot fat jar into the container
 COPY target/fintech-0.0.1-SNAPSHOT.jar app.jar
+# Expose the default Spring Boot port
+EXPOSE 8080
 
-# Set up runtime entrypoint
+# Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]

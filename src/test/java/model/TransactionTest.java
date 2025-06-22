@@ -46,4 +46,5 @@ class TransactionTest {
             assertTrue(tx.getTimestamp().isBefore(LocalDateTime.now().plusSeconds(1)));
         }
     }
+    
 }

@@ -16,7 +16,7 @@ public class TransactionService {
 
     private List<Transaction> transactions;
     private final AccountService accountService;
-
+    
     public TransactionService(AccountService accountService) {
         this.accountService = accountService;
 
@@ -29,6 +29,20 @@ public class TransactionService {
             this.transactions = new ArrayList<>();
             System.err.println("Failed to load transactions: " + e.getMessage());
         }
+    }
+    public List<Transaction> getUserTransactions(String userName) {
+        Account account = accountService.findByUserName(userName);
+        if (account == null) {
+            System.err.println("Account not found for username: " + userName);
+            return new ArrayList<>();
+        }
+
+        List<Long> transactionIds = account.getTransactions();
+        List<Transaction> all = JsonFileHandler.loadTransactions();
+
+        return all.stream()
+                  .filter(tx -> transactionIds.contains(tx.getTransactionId()))
+                  .toList();
     }
 
     public Long deposit(String userName, double amount) {
@@ -73,5 +87,13 @@ public class TransactionService {
     
     public List<Transaction> getAllTransactions() {
         return transactions;
+    }
+    public Double checkBalance(String userName) {
+        Account account = accountService.findByUserName(userName);
+        if (account == null) {
+        	return null;
+        }
+        Double balance = account.getBalance();
+        return balance;
     }
 }

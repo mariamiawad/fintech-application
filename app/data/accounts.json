@@ -1,0 +1,10 @@
+{
+  "accounts" : [ {
+    "transactions" : [ 1 ],
+    "accountId" : 1000,
+    "userName" : "karim",
+    "balance" : 50.0,
+    "timestamp" : "2025-06-22T19:05:11.0961998",
+    "passwordHash" : "$2a$10$/sMcu1Q.XBK6zEccNT2aP.twBg5yY3Y8V3MM2EofqOpaTk58Orzzm"
+  } ]
+}
