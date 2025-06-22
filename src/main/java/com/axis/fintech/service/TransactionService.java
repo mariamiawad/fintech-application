@@ -68,7 +68,6 @@ public class TransactionService {
 
         accountService.updateAccount(account);
         JsonFileHandler.saveTransactions(transactions);
-        System.out.println("Transaction number is " + tx.getTransactionId());
         return tx.getTransactionId();
     }
     

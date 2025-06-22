@@ -1,4 +1,5 @@
 package cli;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -10,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.util.Scanner;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,196 +26,207 @@ import com.axis.fintech.service.TransactionService;
 
 public class FintechAppTest {
 
-    @Mock private AccountService accountService;
-    @Mock private TransactionService transactionService;
-    @Mock private AuthService authService;
-    @Mock private MenuService menuService;
+	@Mock
+	private AccountService accountService;
+	@Mock
+	private TransactionService transactionService;
+	@Mock
+	private AuthService authService;
+	@Mock
+	private MenuService menuService;
 
-    private FintechApp fintechApp;
+	@BeforeEach
+	void setUp() {
+		MockitoAnnotations.openMocks(this);
+	}
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+	@Test
+	void testStart_loginFlow() {
+		String input = "1\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-    @Test
-    void testStart_loginFlow() {
-        String input = "1\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				if ("1".equals(userChoice)) {
+					when(authService.login(scanner)).thenReturn("testuser");
+					menuService.menu(scanner, "testuser");
+				}
+			}
+		};
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                if ("1".equals(userChoice)) {
-                    when(authService.login(scanner)).thenReturn("testuser");
-                    menuService.menu(scanner, "testuser");
-                }
-            }
-        };
+		app.start();
+		verify(menuService, times(1)).menu(any(), eq("testuser"));
+	}
 
-        app.start();
-        verify(menuService, times(1)).menu(any(), eq("testuser"));
-    }
+	@Test
+	void testStart_signupFlow_andExit() {
+		String input = "2\nno\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-    @Test
-    void testStart_signupFlow_andExit() {
-        String input = "2\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		// Mock AuthService with controlled behavior
+		AuthService mockAuthService = mock(AuthService.class);
+		when(mockAuthService.signup(any())).thenReturn(null);
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+		doAnswer(invocation -> null).when(mockAuthService).retry(any(Scanner.class), any(Supplier.class));
+		// Create FintechApp with the mocked AuthService
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				System.out.println("\n=== Fintech CLI Menu ===");
+				System.out.println("1. Login");
+				System.out.println("2. Signup");
+				System.out.print("Enter your choice: ");
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                if ("2".equals(userChoice)) {
-                    when(authService.signup(scanner)).thenReturn(null);
-                    doAnswer(invocation -> null).when(authService).retry(any(), any());
-                    authService.retry(scanner, this::start);
-                }
-            }
-        };
+				String userChoice = scanner.nextLine().trim();
+				if ("2".equals(userChoice)) {
+					mockAuthService.signup(scanner);
+					mockAuthService.retry(scanner, () -> start());
+				}
+			}
+		};
 
-        app.start();
-        verify(authService, times(1)).retry(any(), any());
-    }
+		app.start();
 
-    @Test
-    void testStart_invalidInput_thenLogin() {
-        String input = "abc\n1\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		verify(mockAuthService, times(1)).retry(any(Scanner.class), any(Runnable.class));
+	}
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+	@Test
+	void testStart_invalidInput_thenLogin() {
+		String input = "abc\n1\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                while (!userChoice.matches("^(1|2)$")) {
-                    userChoice = scanner.nextLine().trim();
-                }
-                if ("1".equals(userChoice)) {
-                    when(authService.login(scanner)).thenReturn("testuser");
-                    menuService.menu(scanner, "testuser");
-                }
-            }
-        };
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
 
-        app.start();
-        verify(menuService, times(1)).menu(any(), eq("testuser"));
-    }
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				while (!userChoice.matches("^(1|2)$")) {
+					userChoice = scanner.nextLine().trim();
+				}
+				if ("1".equals(userChoice)) {
+					when(authService.login(scanner)).thenReturn("testuser");
+					menuService.menu(scanner, "testuser");
+				}
+			}
+		};
 
-    @Test
-    void testStart_signupSuccess_thenMenu() {
-        String input = "2\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		app.start();
+		verify(menuService, times(1)).menu(any(), eq("testuser"));
+	}
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+	@Test
+	void testStart_signupSuccess_thenMenu() {
+		String input = "2\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                if ("2".equals(userChoice)) {
-                    when(authService.signup(scanner)).thenReturn("newuser");
-                    menuService.menu(scanner, "newuser");
-                }
-            }
-        };
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
 
-        app.start();
-        verify(menuService, times(1)).menu(any(), eq("newuser"));
-    }
-    @Test
-    void testStart_loginReturnsNull_doesNotCallMenu() {
-        String input = "1\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				if ("2".equals(userChoice)) {
+					when(authService.signup(scanner)).thenReturn("newuser");
+					menuService.menu(scanner, "newuser");
+				}
+			}
+		};
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+		app.start();
+		verify(menuService, times(1)).menu(any(), eq("newuser"));
+	}
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                if ("1".equals(userChoice)) {
-                    when(authService.login(scanner)).thenReturn(null);
-                    String result = authService.login(scanner);
-                    if (result != null) {
-                        menuService.menu(scanner, result);
-                    }
-                }
-            }
-        };
+	@Test
+	void testStart_loginReturnsNull_doesNotCallMenu() {
+		String input = "1\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-        app.start();
-        verify(menuService, never()).menu(any(), any());
-    }
-    @Test
-    void testStart_blankInput_thenSignup() {
-        String input = "\n\n2\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				if ("1".equals(userChoice)) {
+					when(authService.login(scanner)).thenReturn(null);
+					String result = authService.login(scanner);
+					if (result != null) {
+						menuService.menu(scanner, result);
+					}
+				}
+			}
+		};
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                while (!userChoice.matches("^(1|2)$")) {
-                    userChoice = scanner.nextLine().trim();
-                }
-                if ("2".equals(userChoice)) {
-                    when(authService.signup(scanner)).thenReturn("someone");
-                    menuService.menu(scanner, "someone");
-                }
-            }
-        };
+		app.start();
+		verify(menuService, never()).menu(any(), any());
+	}
 
-        app.start();
-        verify(menuService, times(1)).menu(any(), eq("someone"));
-    }
-    @Test
-    void testStart_loginReturnsNull_shouldSkipMenu() {
-        String input = "1\n";
-        System.setIn(new ByteArrayInputStream(input.getBytes()));
+	@Test
+	void testStart_blankInput_thenSignup() {
+		String input = "\n\n2\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
-        AuthService authService = mock(AuthService.class);
-        MenuService menuService = mock(MenuService.class);
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
 
-        FintechApp app = new FintechApp(accountService, transactionService) {
-            @Override
-            public void start() {
-                Scanner scanner = new Scanner(System.in);
-                String userChoice = scanner.nextLine().trim();
-                if ("1".equals(userChoice)) {
-                    when(authService.login(scanner)).thenReturn(null);
-                    String result = authService.login(scanner);
-                    if (result != null) {
-                        menuService.menu(scanner, result);
-                    }
-                }
-            }
-        };
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				while (!userChoice.matches("^(1|2)$")) {
+					userChoice = scanner.nextLine().trim();
+				}
+				if ("2".equals(userChoice)) {
+					when(authService.signup(scanner)).thenReturn("someone");
+					menuService.menu(scanner, "someone");
+				}
+			}
+		};
 
-        app.start();
-        verify(menuService, never()).menu(any(), any());
-    }
+		app.start();
+		verify(menuService, times(1)).menu(any(), eq("someone"));
+	}
 
+	@Test
+	void testStart_loginReturnsNull_shouldSkipMenu() {
+		String input = "1\n";
+		System.setIn(new ByteArrayInputStream(input.getBytes()));
 
+		AuthService authService = mock(AuthService.class);
+		MenuService menuService = mock(MenuService.class);
+
+		FintechApp app = new FintechApp(accountService, transactionService) {
+			@Override
+			public void start() {
+				Scanner scanner = new Scanner(System.in);
+				String userChoice = scanner.nextLine().trim();
+				if ("1".equals(userChoice)) {
+					when(authService.login(scanner)).thenReturn(null);
+					String result = authService.login(scanner);
+					if (result != null) {
+						menuService.menu(scanner, result);
+					}
+				}
+			}
+		};
+
+		app.start();
+		verify(menuService, never()).menu(any(), any());
+	}
 
 }

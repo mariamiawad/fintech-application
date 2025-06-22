@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.ByteArrayInputStream;
 import java.util.Scanner;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import com.axis.fintech.cli.AuthService;
 import com.axis.fintech.cli.MenuService;
 import com.axis.fintech.model.Account;
 import com.axis.fintech.service.AccountService;
+import com.axis.fintech.utils.Exiter;
 import com.axis.fintech.utils.HashUtil;
 
 class AuthServiceTest {
@@ -34,7 +36,7 @@ class AuthServiceTest {
 	@BeforeEach
 	void setUp() {
 		MockitoAnnotations.openMocks(this);
-		authService = new AuthService(accountService);
+		authService = new AuthService(accountService, status -> System.exit(status));
 	}
 
 	@Test
@@ -64,7 +66,7 @@ class AuthServiceTest {
 	    when(accountService.validatePassword("user1", "wrong")).thenReturn(false);
 	    when(accountService.validatePassword("user1", "right")).thenReturn(true);
 
-	    AuthService testAuthService = new AuthService(accountService) {
+	    AuthService testAuthService = new AuthService(accountService, status -> System.exit(status)) {
 	        private int attempt = 0;
 
 	        @Override
@@ -89,10 +91,10 @@ class AuthServiceTest {
 		Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 		when(accountService.findByUserName("userX")).thenReturn(null);
 
-		authService = new AuthService(accountService) {
+		authService = new AuthService(accountService, status -> System.exit(status)) {
 			@Override
-			public boolean retry(Scanner scanner, Runnable retryAction) {
-				return false;
+			public String retry(Scanner scanner, Supplier<String> retryFunction) {
+				return null;
 			}
 		};
 
@@ -115,23 +117,23 @@ class AuthServiceTest {
 	    Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
 	    when(accountService.openAccount(eq("newuser"), anyString())).thenReturn(null);
+
+	    authService = new AuthService(accountService, status -> System.exit(status));
+//	    {
+//	        @Override
+//	        public boolean retry(Scanner scanner, Runnable retryAction) {
+//	            // This will consume "yes" from the input correctly
+//	            System.out.print("Would you like to return to main menu? (yes/no): ");
+//	            String retry = scanner.nextLine().trim().toLowerCase();
+//	            return retry.equals("yes") || retry.equals("y");
+//	        }
+//
+//	        @Override
+//	        public String readPassword(Scanner scanner) {
+//	            return scanner.nextLine(); // correct password handling
+//	        }
+//	    };
 	    when(accountService.openAccount(eq("newuser2"), anyString())).thenReturn(321L);
-
-	    authService = new AuthService(accountService) {
-	        @Override
-	        public boolean retry(Scanner scanner, Runnable retryAction) {
-	            // This will consume "yes" from the input correctly
-	            System.out.print("Would you like to return to main menu? (yes/no): ");
-	            String retry = scanner.nextLine().trim().toLowerCase();
-	            return retry.equals("yes") || retry.equals("y");
-	        }
-
-	        @Override
-	        public String readPassword(Scanner scanner) {
-	            return scanner.nextLine(); // correct password handling
-	        }
-	    };
-
 	    String result = authService.signup(scanner);
 	    assertEquals("newuser2", result);
 	}
@@ -143,10 +145,10 @@ class AuthServiceTest {
 		Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 		when(accountService.openAccount(anyString(), anyString())).thenReturn(null);
 
-		authService = new AuthService(accountService) {
+		authService = new AuthService(accountService, status -> System.exit(status)) {
 			@Override
-			public boolean retry(Scanner scanner, Runnable retryAction) {
-				return false;
+			public String retry(Scanner scanner, Supplier<String> retryFunction) {
+				return null;
 			}
 		};
 
@@ -156,62 +158,77 @@ class AuthServiceTest {
 
 	@Test
 	void testRetry_yes() {
-		String input = "yes\n";
-		Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+	    String input = "yes\n";
+	    Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
-		final boolean[] called = { false };
-		authService.retry(scanner, () -> called[0] = true);
+	    final boolean[] called = { false };
+	    authService.retry(scanner, () -> {
+	        called[0] = true;
+	        return "test";
+	    });
 
-		assertTrue(called[0]);
+	    assertTrue(called[0]);
 	}
-
+	
 	@Test
-	void testRetry_no_callsSystemExit() {
-	    SecurityManager original = System.getSecurityManager();
-	    System.setSecurityManager(new NoExitSecurityManager()); // intercept exit
-
+	void testRetry_no_callsExitHandler() {
 	    String input = "no\n";
 	    Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
-	    try {
-	        ExitException e = assertThrows(ExitException.class, () -> {
-	            authService.retry(scanner, () -> fail("Should not call retryAction"));
-	        });
-	        assertEquals(0, e.status);
-	    } finally {
-	        System.setSecurityManager(original); // always restore!
-	    }
+	    final int[] exitStatus = { -1 };
+	    Exiter fakeExiter = status -> {
+	        exitStatus[0] = status;
+	        throw new RuntimeException("Exit intercepted");
+	    };
+
+	    AuthService authService = new AuthService(accountService, fakeExiter);
+
+	    RuntimeException e = assertThrows(RuntimeException.class, () ->
+	        authService.retry(scanner, () -> fail("Should not retry"))
+	    );
+
+	    assertEquals("Exit intercepted", e.getMessage());
+	    assertEquals(0, exitStatus[0]);
 	}
+
 
 
 	@Test
 	void testRetry_invalid_thenYes() {
-		String input = "maybe\ny\n";
-		Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+	    String input = "maybe\ny\n";
+	    Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
-		final boolean[] called = { false };
-		authService.retry(scanner, () -> called[0] = true);
+	    final boolean[] called = { false };
+	    authService.retry(scanner, () -> {
+	        called[0] = true;
+	        return "test";
+	    });
 
-		assertTrue(called[0]);
-	}
-	static class ExitException extends SecurityException {
-	    public final int status;
-	    public ExitException(int status) {
-	        super("Intercepted System.exit with status: " + status);
-	        this.status = status;
-	    }
+	    assertTrue(called[0]);
 	}
 
-	static class NoExitSecurityManager extends SecurityManager {
-	    @Override
-	    public void checkPermission(java.security.Permission perm) {
-	        // allow all other operations
-	    }
-
-	    @Override
-	    public void checkExit(int status) {
-	        throw new ExitException(status);
-	    }
-	}
+//	static class ExitException extends SecurityException {
+//	    /**
+//		 * 
+//		 */
+//		private static final long serialVersionUID = 1L;
+//		public final int status;
+//	    public ExitException(int status) {
+//	        super("Intercepted System.exit with status: " + status);
+//	        this.status = status;
+//	    }
+//	}
+//
+//	@SuppressWarnings("removal")
+//	static class NoExitSecurityManager extends SecurityManager {
+//	    @Override
+//	    public void checkPermission(java.security.Permission perm) {
+//	    }
+//
+//	    @Override
+//	    public void checkExit(int status) {
+//	        throw new ExitException(status);
+//	    }
+//	}
 
 }

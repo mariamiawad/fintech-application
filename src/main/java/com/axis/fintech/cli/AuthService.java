@@ -1,19 +1,21 @@
 package com.axis.fintech.cli;
 
-import com.axis.fintech.model.Account;
-import com.axis.fintech.service.AccountService;
-
 import java.io.Console;
 import java.util.Scanner;
-import java.util.function.Consumer;
+import java.util.function.Supplier;
+
+import com.axis.fintech.model.Account;
+import com.axis.fintech.service.AccountService;
+import com.axis.fintech.utils.Exiter;
 
 public class AuthService {
-
+	private final Exiter exiter;
     private final AccountService accountService;
     private String password;
 
-    public AuthService(AccountService accountService) {
+    public AuthService(AccountService accountService, Exiter exiter) {
         this.accountService = accountService;
+        this.exiter =  exiter;
     }
 
     public String login(Scanner scanner) {
@@ -23,7 +25,6 @@ public class AuthService {
         Account existing = accountService.findByUserName(userName);
         if (existing == null) {
             System.err.println("You don't have an account!");
-            
             return null;
         }
 
@@ -48,9 +49,9 @@ public class AuthService {
             System.out.println("Your account id is " + accountId);
             return userName;
         }
-        return null;
+        return retry(scanner, ()-> signup(scanner));
     }
-
+    
     public String readPassword(Scanner scanner) {
         Console console = System.console();
         if (console != null) {
@@ -62,8 +63,8 @@ public class AuthService {
             return scanner.nextLine();
         }
     }
-
-    public boolean retry(Scanner scanner, Runnable retryAction) {
+    
+    public String retry(Scanner scanner, Supplier<String> retryFunction) {
         System.out.print("Would you like to return to main menu? (yes/no): ");
         String retry = scanner.nextLine().trim().toLowerCase();
 
@@ -73,11 +74,28 @@ public class AuthService {
         }
 
         if (retry.equals("yes") || retry.equals("y")) {
-            retryAction.run();
+            return retryFunction.get();
+        } else {
+            System.out.println("Exiting...");
+            exiter.exit(0);
+            return null;
+        }
+    }
+    public boolean retry(Scanner scanner, Runnable retryFunction) {
+        System.out.print("Would you like to return to main menu? (yes/no): ");
+        String retry = scanner.nextLine().trim().toLowerCase();
+
+        while (!retry.matches("^(yes|y|no|n)$")) {
+            System.out.print("Please enter yes/y or no/n: ");
+            retry = scanner.nextLine().trim().toLowerCase();
+            
+        }
+
+        if (retry.equals("yes") || retry.equals("y")) {
             return true;
         } else {
             System.out.println("Exiting...");
-            System.exit(0);
+            exiter.exit(0);
             return false;
         }
     }

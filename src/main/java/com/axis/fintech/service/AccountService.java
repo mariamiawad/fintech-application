@@ -36,10 +36,10 @@ public class AccountService {
 			return null;
 		}
         String regex = "^[a-zA-Z]+\\d*$";
-
         Pattern pattern = Pattern.compile(regex);
         if (!pattern.matcher(userName).matches()) {
             System.err.println("Invalid username: " + userName + " (must start with letters and may end with digits)");
+            return null;
         }
 		Long accountId = IdGenerator.nextAccountId();
 	    String hashedPassword = HashUtil.sha256(plainPassword);

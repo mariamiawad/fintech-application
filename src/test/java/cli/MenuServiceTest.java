@@ -1,5 +1,8 @@
 package cli;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -34,7 +37,7 @@ class MenuServiceTest {
     @BeforeEach
     void setUp() {
         // Prevent actual System.exit in tests
-        menuService = new MenuService(accountService, transactionService, () -> {});
+        menuService = new MenuService(accountService, transactionService, status-> System.exit(0));
     }
 
     @Test
@@ -42,8 +45,18 @@ class MenuServiceTest {
         String input = "1\n100.0\nno\n";
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
         when(transactionService.deposit("user1", 100.0)).thenReturn(123L);
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
 
-        menuService.menu(scanner, "user1");
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+        	menuService.menu(scanner, "user1")
+        );
+
+       
+
 
         verify(transactionService).deposit("user1", 100.0);
     }
@@ -52,10 +65,22 @@ class MenuServiceTest {
     void testChoice1_deposit_invalidAmount_thenExit() {
         String input = "1\nabd.0\nno\n";
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
-        menuService.menu(scanner, "user1");
-        verify(transactionService, never()).deposit(anyString(), anyDouble());
 
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
+
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+            menuService.menu(scanner, "user1")
+        );
+
+        assertEquals("Exit intercepted", e.getMessage());
+        assertTrue(exitCalled[0]);
+        verify(transactionService, never()).deposit(anyString(), anyDouble());
     }
+
 
     @Test
     void testChoice2_withdraw_validAmount_thenExit() {
@@ -63,7 +88,16 @@ class MenuServiceTest {
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
         when(transactionService.withdraw("user1", 200.0)).thenReturn(321L);
 
-        menuService.menu(scanner, "user1");
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
+
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+            menuService.menu(scanner, "user1")
+        );
+
         verify(transactionService).withdraw("user1", 200.0);
     }
 
@@ -72,10 +106,21 @@ class MenuServiceTest {
         String input = "2\nwrong\nno\n";
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
-        menuService.menu(scanner, "user1");
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
+
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+            menuService.menu(scanner, "user1")
+        );
+
+        assertEquals("Exit intercepted", e.getMessage());
+        assertTrue(exitCalled[0]);
         verify(transactionService, never()).withdraw(anyString(), anyDouble());
-    
     }
+
 
     @Test
     void testChoice3_checkBalance_thenExit() {
@@ -83,7 +128,18 @@ class MenuServiceTest {
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
         when(accountService.getBalance("user1")).thenReturn(555.5);
 
-        menuService.menu(scanner, "user1");
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
+
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+        	menuService.menu(scanner, "user1")
+        );
+
+        assertEquals("Exit intercepted", e.getMessage());
+        assertTrue(exitCalled[0]);
         verify(accountService).getBalance("user1");
     }
 
@@ -91,30 +147,55 @@ class MenuServiceTest {
     void testChoice4_exitDirectly() {
         String input = "4\n";
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
 
-        menuService.menu(scanner, "user1");
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+        	menuService.menu(scanner, "user1")
+        );
+        assertEquals("Exit intercepted", e.getMessage());
         // No side effects to verify, test exits cleanly
     }
 
     @Test
     void testInvalidChoice_nonNumber() {
-        String input = "abc\n4\n"; // retry with valid exit
+        String input = "abc\n4\n"; // 'abc' is invalid, then retry with valid
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
-        menuService.menu(scanner, "user1");
+        final boolean[] exitCalled = {false};
+        MenuService menuService = new MenuService(accountService, transactionService, status -> {
+            exitCalled[0] = true;
+            throw new RuntimeException("Exit intercepted");
+        });
+
+        RuntimeException e = assertThrows(RuntimeException.class, () -> 
+        	menuService.menu(scanner, "user1")
+        );
+
+        assertEquals("Exit intercepted", e.getMessage());
+        // You can capture output if needed, or just ensure it doesn't crash
+
+        // No assert here unless you're validating System.out
+        // At least assert it didn't crash
+        assertDoesNotThrow(() -> menuService.menu(scanner, "user1"));
     }
 
     @Test
     void testInvalidChoice_numberOutOfRange() {
-        String input = "9\nno\n"; // 9 is invalid -> 'Invalid choice.', then user exits
+        String input = "9\nno\n"; // '9' is invalid -> triggers exit confirmation
         Scanner scanner = new Scanner(new ByteArrayInputStream(input.getBytes()));
 
         final boolean[] exitCalled = {false};
-        MenuService menuService = new MenuService(accountService, transactionService, () -> exitCalled[0] = true);
+
+        MenuService menuService = new MenuService(accountService, transactionService, status -> exitCalled[0] = true);
 
         menuService.menu(scanner, "user1");
 
-        assertTrue(exitCalled[0]);
+        assertTrue(exitCalled[0], "Expected exit to be called after invalid input and choosing 'no'");
     }
+
 
 
 
@@ -126,7 +207,7 @@ class MenuServiceTest {
         when(transactionService.deposit("user1", 100.0)).thenReturn(1000L);
 
         final boolean[] exited = { false };
-        menuService = new MenuService(accountService, transactionService, () -> exited[0] = true);
+        menuService = new MenuService(accountService, transactionService, status -> exited[0] = true);
 
         menuService.menu(scanner, "user1");
 
@@ -140,7 +221,7 @@ class MenuServiceTest {
         when(transactionService.deposit("user1", 100.0)).thenReturn(42L);
 
         final boolean[] exited = {false};
-        menuService = new MenuService(accountService, transactionService, () -> exited[0] = true);
+        menuService = new MenuService(accountService, transactionService,  status -> exited[0] = true);
 
         menuService.menu(scanner, "user1");
 
@@ -156,7 +237,7 @@ class MenuServiceTest {
         when(transactionService.withdraw("user1", 30.0)).thenReturn(20L);
 
         final boolean[] exited = {false};
-        menuService = new MenuService(accountService, transactionService, () -> exited[0] = true);
+        menuService = new MenuService(accountService, transactionService,  status -> exited[0] = true);
 
         menuService.menu(scanner, "user1");
 

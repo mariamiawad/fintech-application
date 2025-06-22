@@ -1,25 +1,26 @@
 package com.axis.fintech.cli;
 
+import java.util.Scanner;
+
 import com.axis.fintech.service.AccountService;
 import com.axis.fintech.service.TransactionService;
-
-import java.util.Scanner;
+import com.axis.fintech.utils.Exiter;
 
 public class MenuService {
 
 	private final AccountService accountService;
 	private final TransactionService transactionService;
-	private final Runnable exitAction;
+	private final Exiter exiter;
 	private boolean running = true;
 
 	public MenuService(AccountService accountService, TransactionService transactionService) {
-		this(accountService, transactionService, () -> System.exit(0));
+		this(accountService, transactionService, status -> System.exit(status));
 	}
 
-	public MenuService(AccountService accountService, TransactionService transactionService, Runnable exitAction) {
+	public MenuService(AccountService accountService, TransactionService transactionService, Exiter exiter) {
 		this.accountService = accountService;
 		this.transactionService = transactionService;
-		this.exitAction = exitAction;
+		this.exiter = exiter;
 	}
 
 	public void menu(Scanner scanner, String userName) {
@@ -45,18 +46,18 @@ public class MenuService {
 			case 4 -> {
 				System.out.println("Goodbye!");
 				running = false;
-				exitAction.run();
+				exiter.exit(0);
 			}
 			default -> System.err.println("Invalid choice.");
 			}
-			if(running) {
+			if (running) {
 				boolean toContinue = toContinue(scanner);
 				if (!toContinue) {
 					running = false;
-					exitAction.run();
+					exiter.exit(0);
 				}
 			}
-			
+
 		}
 	}
 
@@ -68,10 +69,7 @@ public class MenuService {
 			System.out.println("Transaction number is " + transactionId);
 		} catch (Exception e) {
 			System.err.println("Amount should be a number");
-			if (!toContinue(scanner)) {
-				exitAction.run();
-				running = false;
-			}
+			return;
 		}
 	}
 
@@ -79,10 +77,16 @@ public class MenuService {
 		System.out.print("Enter amount: ");
 		try {
 			double amt = Double.parseDouble(scanner.nextLine());
-			long transactionId = transactionService.withdraw(userName, amt);
-			System.out.println("Transaction number is " + transactionId);
+			Long transactionId = transactionService.withdraw(userName, amt);
+			if (transactionId != null) {
+				System.out.println("Transaction number is " + transactionId);
+			} else {
+				return;
+			}
 		} catch (Exception e) {
 			System.err.println("Amount should be a number");
+			return;
+
 		}
 	}
 
@@ -91,7 +95,7 @@ public class MenuService {
 		System.out.println("Your balance is " + balance);
 	}
 
-	private boolean toContinue(Scanner scanner) {
+	public boolean toContinue(Scanner scanner) {
 		String answer;
 		while (true) {
 			System.out.print("Do you want to continue? (yes/y or no/n): ");
@@ -103,7 +107,7 @@ public class MenuService {
 				return false;
 			}
 			System.err.println("Invalid input. Please enter yes/y or no/n.");
-			
+
 		}
 	}
 }

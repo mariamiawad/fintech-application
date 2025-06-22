@@ -70,7 +70,7 @@ class AccountServiceTest {
     void testOpenAccount_invalidUsername_logsError() {
         mockedFileHandler.when(() -> JsonFileHandler.saveAccounts(any())).thenAnswer(invocation -> null);
         Long id = accountService.openAccount("123invalid", "pass");
-        assertNotNull(id); // still creates account
+        assertNull(id); 
     }
 
     @Test
@@ -105,7 +105,7 @@ class AccountServiceTest {
     void testUpdateAccount_savesAccounts() {
         mockedFileHandler.when(() -> JsonFileHandler.saveAccounts(any())).thenAnswer(invocation -> null);
         accountService.updateAccount(new Account());
-        mockedFileHandler.verify(() -> JsonFileHandler.saveAccounts(any()), times(3));
+        mockedFileHandler.verify(() -> JsonFileHandler.saveAccounts(any()), times(2));
     }
 
     @Test

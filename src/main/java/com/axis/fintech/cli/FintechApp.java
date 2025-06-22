@@ -7,16 +7,20 @@ import org.springframework.stereotype.Component;
 import com.axis.fintech.model.Account;
 import com.axis.fintech.service.AccountService;
 import com.axis.fintech.service.TransactionService;
+
+import ch.qos.logback.core.joran.conditional.IfAction;
+
 @Component
 public class FintechApp {
 
 	private final AuthService authService;
 	private final MenuService menuService;
 	private final AccountService accountService;
+
 	public FintechApp(AccountService accountService, TransactionService transactionService) {
-		this.authService = new AuthService(accountService);
+		this.authService = new AuthService(accountService, status -> System.exit(status));
 		this.menuService = new MenuService(accountService, transactionService);
-		this.accountService =  accountService;
+		this.accountService = accountService;
 	}
 
 	public void start() {
@@ -33,27 +37,29 @@ public class FintechApp {
 		}
 		switch (userChoice) {
 		case "1" -> {
-			
+
 			String userName = authService.login(scanner);
 			if (userName != null) {
 				menuService.menu(scanner, userName);
-
-			}
-			
-			else {
-				System.exit(0);
-				return;
+			} else if (authService.retry(scanner, () -> start())) {
+				start();
 			}
 		}
 		case "2" -> {
 			String userName = authService.signup(scanner);
 			if (userName != null) {
-				menuService.menu(scanner, userName);
-				Account account  = accountService.findByUserName(userName);
+
+				Account account = accountService.findByUserName(userName);
 				System.out.println(account.getAccountId());
-			}else
-				authService.retry(scanner, this::start);
+				if (menuService.toContinue(scanner)) {
+					menuService.menu(scanner, userName);
+				}
+			}
+			if (authService.retry(scanner, () -> start())) {
+				start();
+			}
 		}
+
 		}
 	}
 }
